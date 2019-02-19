@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+JAR=service-validator.jar
+
+java -jar $JAR $@
+
