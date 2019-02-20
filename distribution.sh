@@ -18,7 +18,8 @@ cp service-validator target/
 cd target
 tar czf $TGZ $JAR $NAME LICENSE.txt README.md
 
-if [ -e $KEY ] ; then
+if [ -e $KEY ] && [ "$1" = "--upload" ] ; then
+	shift
 	scp -i $KEY $TGZ root@downloads.lappsgrid.org:/var/lib/downloads
 	if [ "$1" = "--latest" ] ; then
 	    cp $TGZ $LATEST

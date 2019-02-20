@@ -8,18 +8,23 @@ import org.lappsgrid.serialization.Serializer
 /**
  *
  */
-class ServiceIndex {
+class ServiceIndex implements Iterable<String> {
 
     File root
 
     Map<String, List<String>> index = [:]
     Map<String, ServiceMetadata> metadata = [:]
     Map<String, String> urls = [:]
+    List<String> all = []
 
     ServiceIndex() { }
     ServiceIndex(String path) { this(new File(path)) }
     ServiceIndex(File directory) {
         this.root = directory
+    }
+
+    Iterator<String> iterator() {
+        return all.iterator()
     }
 
     void load(String organization) {
@@ -39,7 +44,7 @@ class ServiceIndex {
                     urls[id] = url
                 }
                 else {
-                    println "WARING: No url for service $id"
+                    println "WARNING: No url for service $id"
                 }
                 if (schema.contains('service-schema')) {
                     ServiceMetadata md = new ServiceMetadata((Map) data.payload)
@@ -62,6 +67,7 @@ class ServiceIndex {
             index[type] = services
         }
         services.add(service)
+        all.add(service)
     }
 
     List<String> getAt(String type) {
