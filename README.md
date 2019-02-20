@@ -21,16 +21,18 @@ A simple Bash shell script is provided to invoke the Java JAR file.
 The `service-validator` caches local copies of the service metadata for each service registerd to the LAPPS Grid. Before testing any services this metadata must be downloaded from the services.
 
 ```bash
+./service-validator up -bv
 ./service-validator update --brandeis --vassar
 ```
 
 By default the metadata will be cached in the user's $HOME directory ($HOME/.lappsgrid).  The cache directory location can also be changed with the `-d`, `--cache-dir` option:
 
 ```bash
-./service-validator -d /var/lib/lappsgrid update -bv
+./service-validator --cache-dir /var/lib/lappsgrid update --brandeis --vassar
+./service-validator -d /var/lib/lappsgrid up -bv
 ```
 
-**NOTE** The `--cache-dir` must be specified before the *command* (*update* in this example.)
+**NOTE** The `--cache-dir` must be specified before the *command* (**update** in this example.)
 
 ## Commands
 
@@ -57,7 +59,7 @@ Update metadata for all services:
 ```bash
 ./service-validator update --vassar --bradeis
 ./service-validator update -v -b
-./service-validator update -vb
+./service-validator up -vb
 ```
 
 ### List
@@ -78,14 +80,18 @@ Prints a list of service that produce a give annotation type (`-t`, `--type`).  
 List all services hosted at Brandeis:
 ``` 
 ./service-validator list --brandeis
+./service-validator ls -b
 ```
 List all part-of-speech taggers at Vassar:
 ``` 
+./service-validator ls -vt Token#pos
 ./service-validator list --vassar --type Token#pos
 ```
 List all services that have the string `dkpro` in their service ID:
 ``` 
-./service-validator list -vbf dkpro
+
+./service-validator ls -vbf dkpro
+./service-validator list --vassar --brandeis --filter dkpro
 ```
 
 ### Test
@@ -103,39 +109,40 @@ Sends a LIF document to one or more services and verify that they produce the co
   -h, --help                 Print this help message and exit.
 ```
 
+If one or more `--service`s are specified then the `--type` (if any) is ignored.
+
 **Examples**
 
 Test all part-of-speech taggers.
 
 ```bash
+./service-validator test --validate --brandeis --vassar --type Token#pos
 ./service-validator test -abvt Token#pos
 ```
 
 Test all DKPro named entity recognizers:
 
 ```bash
+./service-validator test --validate --brandeis --vassar --type NamedEntity --filter dkpro
 ./service-validator test -abvt NamedEntity -f dkpro
 ```
 
 Test the Stanford Tagger v2.0.0 at Vassar and display the generated annotations:
 
 ```bash
-./service-validator -vs stanford.tagger_2.0.0 --verbose
+./service-validator test --vassar --service stanford.tagger_2.0.0 --verbose
+./service-validator test -vs stanford.tagger_2.0.0 --verbose
 ```
 
 ## Notes
 
 A `--filter` can be negated by prepending a tilde (~) to the filter term.  For example, to list all services that do not contain the string *stanford* in their ID:
 
-**Example**
 ```bash
 ./service-validator list -vb -f ~stanford
 ```
 
-Both the `--filter` and `--service` options can be specified multiple times. 
-
-**Examples**
-Test the Vassar Stanford Taggers v2.0.0 and v2.1.0-SNAPSHOT:
+Both the `--filter` and `--service` options can be specified multiple times. For example, to test the Vassar Stanford Taggers v2.0.0 and v2.1.0-SNAPSHOT:
 ```bash
 ./service-validator test -v -s stanford.tagger_2.0.0 -s stanford.tagger_2.1.0-SNAPSHOT
 ```
