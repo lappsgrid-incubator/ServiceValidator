@@ -146,7 +146,7 @@ class TestCommand extends CommonOptions implements Runnable {
                 println "ERROR: ${responseData.payload}"
                 return false
             }
-            // TODO Check the annotations produced!
+
             if (verbose) {
                 println responseData.asPrettyJson()
             }
@@ -169,21 +169,35 @@ class TestCommand extends CommonOptions implements Runnable {
                     println "ERROR: No view with $type was created"
                     failed = true
                 }
+                int annotationsFound = 0
+                String expectedType = type
+                int hash = expectedType.indexOf("#")
+                if (hash > 0) {
+                    expectedType = expectedType.substring(0, hash - 1)
+                }
                 if (validate && generatedViews.size() > 0) {
                     // Check annotations produced in the last view.
                     View view = generatedViews[-1]
                     view.annotations.each { Annotation a ->
                         if (a.atType.contains("#")) {
+                            failed = true
                             invalidTypes.add(a.atType)
                         }
+                        if (expectedType == a.atType) {
+                            ++annotationsFound
+                        }
                     }
-                    if (invalidTypes.size() > 0) {
+                    if (annotationsFound == 0) {
+                        println "WARNING: No $expectedType annotations found."
                         failed = true
-                        println "ERROR: View contains invalid types. "
-                        invalidTypes.sort().each { println "\t$it"}
                     }
                 }
 
+            }
+            if (invalidTypes.size() > 0) {
+                failed = true
+                println "ERROR: View contains invalid types. "
+                invalidTypes.sort().each { println "\t$it"}
             }
         }
         catch (Exception e) {

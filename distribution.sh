@@ -20,6 +20,8 @@ tar czf $TGZ $JAR $NAME LICENSE.txt README.md
 
 if [ -e $KEY ] ; then
 	scp -i $KEY $TGZ root@downloads.lappsgrid.org:/var/lib/downloads
-	cp $TGZ $LATEST
-	scp -i $KEY $LATEST root@downloads.lappsgrid.org:/var/lib/downloads
+	if [ "$1" = "--latest" ] ; then
+	    cp $TGZ $LATEST
+	    scp -i $KEY $LATEST root@downloads.lappsgrid.org:/var/lib/downloads
+	fi
 fi
