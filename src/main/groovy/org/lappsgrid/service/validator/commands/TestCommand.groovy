@@ -1,21 +1,17 @@
 package org.lappsgrid.service.validator.commands
 
 import org.lappsgrid.client.ServiceClient
-import org.lappsgrid.metadata.IOSpecification
 import org.lappsgrid.serialization.Data
-import org.lappsgrid.serialization.DataContainer
 import org.lappsgrid.serialization.Serializer
 import org.lappsgrid.serialization.lif.Annotation
 import org.lappsgrid.serialization.lif.Container
 import org.lappsgrid.serialization.lif.View
-import org.omg.IOP.ServiceContextListHolder
 
 import static org.lappsgrid.discriminator.Discriminators.Uri
 
 import org.lappsgrid.metadata.ServiceMetadata
 import org.lappsgrid.service.validator.ServiceIndex
 import org.lappsgrid.service.validator.ServicesValidator
-import picocli.CommandLine
 import picocli.CommandLine.Command
 import picocli.CommandLine.Option
 
@@ -37,6 +33,8 @@ import picocli.CommandLine.Option
 class TestCommand extends CommonOptions implements Runnable {
     @Option(names=["-a", "--validate"], description = "Check the annotation types produced and reject any with # in the URI.")
     Boolean validate
+    @Option(names=["-n", "--no-view"], description = "Do not expect a new view in the output.")
+    Boolean noNewView
     @Option(names=["-s", "--service"], description = "Service ID of a single service to be tested.")
     String[] services
     @Option(names=["-t", "--type"], description = "Sevices that produces this annotation type will be tested.")
@@ -79,8 +77,13 @@ class TestCommand extends CommonOptions implements Runnable {
                 validateService(id)
             }
         }
+        else if (filters && filters.size() > 0) {
+            index.each { String id ->
+                validateService(id)
+            }
+        }
         else {
-            println "ERROR: One of --type or --service must be specified."
+            println "ERROR: One of --type, --filter, or --service must be specified."
         }
         int total = passed + failed
         if (total > 0) {
@@ -120,78 +123,53 @@ class TestCommand extends CommonOptions implements Runnable {
         else {
             String url = index.getUrl(id)
             println "Validating service $id at $url"
-//            if (metadata.requires.format.contains(Uri.LIF)) {
-                if (testService(url, metadata)) {
-                    println "PASSED: $id"
-                    ++passed
-                }
-                else {
-                    println "FAILED: $id"
-                    ++failed
-                }
-//            }
-//            else {
-//                println "It is only possible to validate services that accept LIF input."
-//                println "Formats accepted by the $id service:"
-//                metadata.requires.format.each { String format ->
-//                    println "\t$format"
-//                }
-//            }
-
+            if (testService(url, metadata)) {
+                println "PASSED: $id"
+                ++passed
+            }
+            else {
+                println "FAILED: $id"
+                ++failed
+            }
         }
     }
 
-    boolean testService(String url, ServiceMetadata metdata) {
+    boolean testService(String url, ServiceMetadata metadata) {
         boolean failed = false
         try {
-//            InputStream stream = this.class.getResourceAsStream("/inception-data.lif")
-//            if (stream == null) {
-//                println "ERROR: Unable to load test data."
-//                return false
-//            }
-//            String json = stream.text
             String json = getTestData(metadata)
             if (json == null) {
                 println "ERROR: Unable to get test data for $url"
                 return false
             }
 
-//            DataContainer data = Serializer.parse(json, DataContainer)
-//            Container original = data.payload
-            println "Parsing test data into a Data object"
             Data data = Serializer.parse(json)
-            println "Converting ${data.discriminator}"
             data = convert(data)
-            println "Creating container"
             Container original = new Container((Map) data.payload)
 
-            println "Calling service"
             ServiceClient client = new ServiceClient(url, "tester", "tester")
             String result = client.execute(json)
-            println "Parsing result"
             Data responseData = Serializer.parse(result)
             if (Uri.ERROR == responseData.discriminator) {
                 println "ERROR: ${responseData.payload}"
                 return false
             }
 
+            responseData = convert(responseData)
+            Container response = new Container((Map) responseData.payload)
+
             if (verbose) {
                 println responseData.asPrettyJson()
             }
 
-            println "Converting response from ${responseData.discriminator}"
-            responseData = convert(responseData)
-            Container response = new Container((Map) responseData.payload)
-
             // One or more views were added by the service
-            if (response.views.size() == original.views.size()) {
+            if (!noNewView && response.views.size() == original.views.size()) {
                 println "ERROR: No view was created"
                 failed = true
             }
 
-            println "Validation annotation types."
             Set<String> invalidTypes = new HashSet<>()
-            metdata.produces.annotations.each { String type ->
+            metadata.produces.annotations.each { String type ->
                 // See if the original document contained the produced type.
                 List<View> originalViews = original.findViewsThatContain(type)
                 List<View> generatedViews = response.findViewsThatContain(type)
@@ -232,7 +210,9 @@ class TestCommand extends CommonOptions implements Runnable {
             }
         }
         catch (Exception e) {
-            println e
+            if (verbose) {
+                e.printStackTrace()
+            }
             return false
         }
         return !failed
@@ -242,20 +222,19 @@ class TestCommand extends CommonOptions implements Runnable {
         String filename
         List<String> requires = metadata.requires.annotations
         if (requires.size() == 0) {
-            println "No annotations required"
             filename = "text.json"
         }
-        else if (requires.contains(Uri.POS) || requires.contains(Uri.SENTENCE)) {
-            println "Using tokens-pos-sentences"
+        else if (requires.contains(Uri.POS) && requires.contains(Uri.SENTENCE)) {
             filename = "tokens-pos-sentences.json"
         }
         else if (requires.contains(Uri.POS)) {
-            println "Using tokens-pos"
             filename = "tokens-pos.json"
         }
         else if (requires.contains(Uri.SENTENCE)) {
-            println "Using tokens-sentences"
             filename = "tokens-sentences.json"
+        }
+        else if (requires.contains(Uri.TOKEN)) {
+            filename = "tokens.json"
         }
         else {
             // We do not have any test data that meets the requirements!
@@ -265,15 +244,12 @@ class TestCommand extends CommonOptions implements Runnable {
         List<String> formats = metadata.requires.format
         String dir
         if (formats.contains(Uri.LIF)) {
-            println "Requires LIF"
             dir = "lif"
         }
         else if (formats.contains(Uri.GATE)) {
-            println "Requires GATE"
             dir = "gate"
         }
         else if (formats.contains(Uri.TCF)) {
-            println "Requires TCF"
             dir = "tcf"
         }
         else {
@@ -287,7 +263,6 @@ class TestCommand extends CommonOptions implements Runnable {
             println "WARNING: Unable to load test data from $path"
             return null
         }
-        println "Using test data from $path"
         return stream.text
     }
 
