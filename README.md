@@ -101,6 +101,7 @@ Sends a LIF document to one or more services and verify that they produce the co
   -b, --brandeis             Call Brandeis services.
   -a, --validate             Check the annotation types produced and reject any with
                                # in the URI.
+  -n, --no-view              Do not expect a new view in the output.
   -s, --service=<services>   Service ID of a single service to be tested.
   -t, --type=<type>          Sevices that produces this annotation type will be
                                tested.
@@ -110,6 +111,8 @@ Sends a LIF document to one or more services and verify that they produce the co
 ```
 
 If one or more `--service`s are specified then the `--type` (if any) is ignored.
+
+Use the `--no-view` option when testing GATE or Weblicht services. Since the output from these services is run through one of the conversion services all annotations will be placed into a single view.  The `--no-veiw` option disables the check to see if the output contains at least one more view than the input.
 
 **Examples**
 
