@@ -1,12 +1,14 @@
 package org.lappsgrid.service.validator.commands
 
 import org.lappsgrid.client.ServiceClient
+import org.lappsgrid.metadata.IOSpecification
 import org.lappsgrid.serialization.Data
 import org.lappsgrid.serialization.DataContainer
 import org.lappsgrid.serialization.Serializer
 import org.lappsgrid.serialization.lif.Annotation
 import org.lappsgrid.serialization.lif.Container
 import org.lappsgrid.serialization.lif.View
+import org.omg.IOP.ServiceContextListHolder
 
 import static org.lappsgrid.discriminator.Discriminators.Uri
 
@@ -47,6 +49,8 @@ class TestCommand extends CommonOptions implements Runnable {
     Boolean help
 
     ServiceIndex index
+    int passed
+    int failed
 
     void run() {
         ServicesValidator app = ServicesValidator.INSTANCE
@@ -59,6 +63,8 @@ class TestCommand extends CommonOptions implements Runnable {
             index.load("brandeis")
         }
 
+        passed = 0
+        failed = 0
         if (services && services.size() > 0) {
             services.each { validateService(it) }
         }
@@ -75,6 +81,12 @@ class TestCommand extends CommonOptions implements Runnable {
         }
         else {
             println "ERROR: One of --type or --service must be specified."
+        }
+        int total = passed + failed
+        if (total > 0) {
+            println "Services tested: $total"
+            println "Passed: $passed"
+            println "Failed: $failed"
         }
     }
 
@@ -108,21 +120,23 @@ class TestCommand extends CommonOptions implements Runnable {
         else {
             String url = index.getUrl(id)
             println "Validating service $id at $url"
-            if (metadata.requires.format.contains(Uri.LIF)) {
+//            if (metadata.requires.format.contains(Uri.LIF)) {
                 if (testService(url, metadata)) {
                     println "PASSED: $id"
+                    ++passed
                 }
                 else {
                     println "FAILED: $id"
+                    ++failed
                 }
-            }
-            else {
-                println "It is only possible to validate services that accept LIF input."
-                println "Formats accepted by the $id service:"
-                metadata.requires.format.each { String format ->
-                    println "\t$format"
-                }
-            }
+//            }
+//            else {
+//                println "It is only possible to validate services that accept LIF input."
+//                println "Formats accepted by the $id service:"
+//                metadata.requires.format.each { String format ->
+//                    println "\t$format"
+//                }
+//            }
 
         }
     }
@@ -130,17 +144,31 @@ class TestCommand extends CommonOptions implements Runnable {
     boolean testService(String url, ServiceMetadata metdata) {
         boolean failed = false
         try {
-            InputStream stream = this.class.getResourceAsStream("/inception-data.lif")
-            if (stream == null) {
-                println "ERROR: Unable to load test data."
+//            InputStream stream = this.class.getResourceAsStream("/inception-data.lif")
+//            if (stream == null) {
+//                println "ERROR: Unable to load test data."
+//                return false
+//            }
+//            String json = stream.text
+            String json = getTestData(metadata)
+            if (json == null) {
+                println "ERROR: Unable to get test data for $url"
                 return false
             }
-            String json = stream.text
-            DataContainer data = Serializer.parse(json, DataContainer)
-            Container original = data.payload
 
+//            DataContainer data = Serializer.parse(json, DataContainer)
+//            Container original = data.payload
+            println "Parsing test data into a Data object"
+            Data data = Serializer.parse(json)
+            println "Converting ${data.discriminator}"
+            data = convert(data)
+            println "Creating container"
+            Container original = new Container((Map) data.payload)
+
+            println "Calling service"
             ServiceClient client = new ServiceClient(url, "tester", "tester")
             String result = client.execute(json)
+            println "Parsing result"
             Data responseData = Serializer.parse(result)
             if (Uri.ERROR == responseData.discriminator) {
                 println "ERROR: ${responseData.payload}"
@@ -151,6 +179,8 @@ class TestCommand extends CommonOptions implements Runnable {
                 println responseData.asPrettyJson()
             }
 
+            println "Converting response from ${responseData.discriminator}"
+            responseData = convert(responseData)
             Container response = new Container((Map) responseData.payload)
 
             // One or more views were added by the service
@@ -159,6 +189,7 @@ class TestCommand extends CommonOptions implements Runnable {
                 failed = true
             }
 
+            println "Validation annotation types."
             Set<String> invalidTypes = new HashSet<>()
             metdata.produces.annotations.each { String type ->
                 // See if the original document contained the produced type.
@@ -201,8 +232,83 @@ class TestCommand extends CommonOptions implements Runnable {
             }
         }
         catch (Exception e) {
+            println e
             return false
         }
         return !failed
     }
+
+    String getTestData(ServiceMetadata metadata) {
+        String filename
+        List<String> requires = metadata.requires.annotations
+        if (requires.size() == 0) {
+            println "No annotations required"
+            filename = "text.json"
+        }
+        else if (requires.contains(Uri.POS) || requires.contains(Uri.SENTENCE)) {
+            println "Using tokens-pos-sentences"
+            filename = "tokens-pos-sentences.json"
+        }
+        else if (requires.contains(Uri.POS)) {
+            println "Using tokens-pos"
+            filename = "tokens-pos.json"
+        }
+        else if (requires.contains(Uri.SENTENCE)) {
+            println "Using tokens-sentences"
+            filename = "tokens-sentences.json"
+        }
+        else {
+            // We do not have any test data that meets the requirements!
+            println "WARNING: No test data meets the requirements: " + requires.join(", ")
+            return null
+        }
+        List<String> formats = metadata.requires.format
+        String dir
+        if (formats.contains(Uri.LIF)) {
+            println "Requires LIF"
+            dir = "lif"
+        }
+        else if (formats.contains(Uri.GATE)) {
+            println "Requires GATE"
+            dir = "gate"
+        }
+        else if (formats.contains(Uri.TCF)) {
+            println "Requires TCF"
+            dir = "tcf"
+        }
+        else {
+            println "WARNING: No test data available in format: " + formats.join(", ")
+            return null
+        }
+
+        String path = "/$dir/$filename"
+        InputStream stream = this.class.getResourceAsStream(path)
+        if (stream == null) {
+            println "WARNING: Unable to load test data from $path"
+            return null
+        }
+        println "Using test data from $path"
+        return stream.text
+    }
+
+    Data convert(Data input) {
+        if (Uri.LIF == input.discriminator) {
+            return input
+        }
+        String url
+        if (Uri.GATE == input.discriminator) {
+            url = "http://vassar.lappsgrid.org/invoker/anc:convert.gate2json_2.1.0"
+        }
+        else if (Uri.TCF == input.discriminator) {
+            url = "http://vassar.lappsgrid.org/invoker/anc:tcf-converter_1.0.1"
+        }
+        else {
+            println "WARNING: No coverter for type ${input.discriminator}"
+            return null
+        }
+        ServiceClient converter = new ServiceClient(url, "tester", "tester")
+        String json = converter.execute(input.asJson())
+        return Serializer.parse(json)
+    }
+
 }
