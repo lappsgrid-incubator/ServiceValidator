@@ -26,7 +26,7 @@
     </parent>
     <groupId>org.lappsgrid.services</groupId>
     <artifactId>validator</artifactId>
-    <version>1.1.0-SNAPSHOT</version>
+    <version>1.1.0</version>
     <url>https://github.com/lappsgrid-incubator/ServiceValidator</url>
     <licenses>
         <license>
