@@ -56,16 +56,16 @@ class TestCommand extends FilteredCommand implements Runnable {
     String[] services
     @Option(names=["-t", "--type"], description = "Sevices that produces this annotation type will be tested.")
     String type
-//    @Option(names=["-f", "--filter"], description="Only test services that match the filter.")
-//    String[] filters
+    @Option(names=["-m", "--summarize"], description = "Print a summary of services that pass/fail.")
+    Boolean summarize
     @Option(names=["--verbose"], description = "Prints the JSON returned by the LAPPS Grid service.")
     Boolean verbose
     @Option(names=["-h", "--help"], description = "Print this help message and exit.", help=true, usageHelp=true)
     Boolean help
 
     ServiceIndex index
-    int passed
-    int failed
+    List<TestResult> passed
+    List<TestResult> failed
 
     void run() {
         ServicesValidator app = ServicesValidator.INSTANCE
@@ -79,8 +79,8 @@ class TestCommand extends FilteredCommand implements Runnable {
         }
 
         List<String> accepted = []
-        passed = 0
-        failed = 0
+        passed = []
+        failed = []
         if (services && services.size() > 0) {
             //services.each { validateService(it) }
             accepted = Arrays.asList(services)
@@ -95,7 +95,6 @@ class TestCommand extends FilteredCommand implements Runnable {
                 return
             }
             ids.each { String id ->
-//                validateService(id)
                 if (accept(id)) {
                     accepted.add(id)
                 }
@@ -103,16 +102,15 @@ class TestCommand extends FilteredCommand implements Runnable {
         }
         else if (filters && filters.size() > 0) {
             index.each { String id ->
-//                validateService(id)
                 if (accept(id)) {
                     accepted.add(id)
                 }
             }
         }
         else {
-            println "ERROR: One of --type, --filter, or --service must be specified."
-            return
+            accepted.addAll(index.all)
         }
+
         if (latest) {
             List<ID> ids = latest(accepted)
             ids.each { ID id ->
@@ -123,37 +121,31 @@ class TestCommand extends FilteredCommand implements Runnable {
             accepted.each { validateService(it) }
         }
 
-        int total = passed + failed
+        int total = passed.size() + failed.size()
         if (total > 0) {
             println "Services tested: $total"
-            println "Passed: $passed"
-            println "Failed: $failed"
+            println "Passed: ${passed.size()}"
+            println "Failed: ${failed.size()}"
+        }
+        if (summarize) {
+            println()
+            println "Passing Services"
+            passed.each { TestResult r ->
+                println r.url
+            }
+            println()
+            println "Failing Services"
+            failed.each { TestResult r->
+                println "\t${r.url}"
+                r.messages.each { String message ->
+                    println "\t\t$message"
+                }
+                println()
+            }
         }
     }
 
-//    boolean accept(String filter, String id) {
-//        if (filter.startsWith("~")) {
-//            return ! accept(filter.substring(1), id)
-//        }
-//        return id.contains(filter)
-//    }
-//
-//    boolean accept(String id) {
-//        if (filters == null || filters.size() == 0) {
-//            return true
-//        }
-//        for (String filter : filters) {
-//            if (!accept(filter, id)) {
-//                return false
-//            }
-//        }
-//        return true
-//    }
-
     void validateService(String id) {
-        if (!accept(id)) {
-            return
-        }
         ServiceMetadata metadata = index.getMetadata(id)
         if (metadata == null) {
             println "WARNING: No metadata for service $id"
@@ -161,38 +153,48 @@ class TestCommand extends FilteredCommand implements Runnable {
         else {
             String url = index.getUrl(id)
             println "Validating $url"
-            if (testService(url, metadata)) {
+            TestResult result = testService(url, metadata)
+            if (result.ok) {
                 println "PASSED: $id"
-                ++passed
+                passed.add(result)
             }
             else {
                 println "FAILED: $id"
-                ++failed
+                result.messages.each { println it }
+                failed.add(result)
             }
         }
     }
 
-    boolean testService(String url, ServiceMetadata metadata) {
-        boolean failed = false
+    TestResult testService(String url, ServiceMetadata metadata) {
+        TestResult result = new TestResult(url)
         try {
             String json = getTestData(metadata)
             if (json == null || json.length() == 0) {
-                println "ERROR: Unable to get test data for $url"
-                return false
+                result.error("Unable to find appropriate test data.")
+                return result
             }
             Data data = Serializer.parse(json)
             data = convert(data)
+            if (data == null) {
+                result.error("Unable to convert input")
+                return result
+            }
             Container original = new Container((Map) data.payload)
 
             ServiceClient client = new ServiceClient(url, "tester", "tester")
-            String result = client.execute(json)
-            Data responseData = Serializer.parse(result)
+            json = client.execute(json)
+            Data responseData = Serializer.parse(json)
             if (Uri.ERROR == responseData.discriminator) {
-                println "ERROR: ${responseData.payload}"
-                return false
+                result.error(responseData.payload.toString())
+                return result
             }
 
             responseData = convert(responseData)
+            if (responseData == null) {
+                result.error("Unable to convert service response.")
+                return result
+            }
             Container response = new Container((Map) responseData.payload)
 
             if (verbose) {
@@ -201,8 +203,7 @@ class TestCommand extends FilteredCommand implements Runnable {
 
             // One or more views were added by the service
             if (!noNewView && response.views.size() == original.views.size()) {
-                println "ERROR: No view was created"
-                failed = true
+                result.error("No view was created.")
             }
 
             Set<String> invalidTypes = new HashSet<>()
@@ -212,8 +213,7 @@ class TestCommand extends FilteredCommand implements Runnable {
                 List<View> generatedViews = response.findViewsThatContain(type)
                 // There should be exactly one more view
                 if (generatedViews.size() != originalViews.size() + 1) {
-                    println "ERROR: No view with $type was created"
-                    failed = true
+                    result.error("No view with $type was created.")
                 }
                 int annotationsFound = 0
                 String expectedType = type
@@ -234,16 +234,15 @@ class TestCommand extends FilteredCommand implements Runnable {
                         }
                     }
                     if (annotationsFound == 0) {
-                        println "WARNING: No $expectedType annotations found."
-                        failed = true
+                        result.warning("No $expectedType annotations found.")
                     }
                 }
 
             }
             if (invalidTypes.size() > 0) {
-                failed = true
                 println "ERROR: View contains invalid types. "
                 invalidTypes.sort().each { println "\t$it"}
+                result.warning("View contains invalid types.")
             }
         }
         catch (Exception e) {
@@ -251,11 +250,11 @@ class TestCommand extends FilteredCommand implements Runnable {
                 e.printStackTrace()
             }
             else {
-                println "ERROR: " + e.message
+                result.error(e.message)
             }
-            return false
+            return result
         }
-        return !failed
+        return result
     }
 
     String getTestData(ServiceMetadata metadata) {
@@ -310,6 +309,12 @@ class TestCommand extends FilteredCommand implements Runnable {
         if (Uri.LIF == input.discriminator) {
             return input
         }
+        if (Uri.LAPPS == input.discriminator) {
+            println "WARNING: Use of a deprecated discrimintaor"
+            input.discriminator = Uri.LIF
+            return input
+        }
+
         String url
         if (Uri.GATE == input.discriminator) {
             url = "http://vassar.lappsgrid.org/invoker/anc:convert.gate2json_2.1.0"

@@ -26,7 +26,9 @@
     </parent>
     <groupId>org.lappsgrid.services</groupId>
     <artifactId>validator</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
+    <name>LAPPS Service Valdiator</name>
+    <description>CLI program for test LAPPS service and validating their output.</description>
     <url>https://github.com/lappsgrid-incubator/ServiceValidator</url>
     <licenses>
         <license>
