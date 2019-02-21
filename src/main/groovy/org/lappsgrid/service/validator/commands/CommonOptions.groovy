@@ -30,4 +30,6 @@ class CommonOptions {
     Boolean vassar
     @Option(names = ['-b', '--brandeis'], description = "Call Brandeis services.")
     Boolean brandeis
+
+
 }

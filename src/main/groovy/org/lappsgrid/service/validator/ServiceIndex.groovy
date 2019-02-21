@@ -61,10 +61,16 @@ class ServiceIndex implements Iterable<String> {
                 }
                 else {
                     println "WARNING: No url for service $id"
+                    url = "http://unknown"
                 }
                 if (schema.contains('service-schema')) {
-                    ServiceMetadata md = new ServiceMetadata((Map) data.payload)
+                    ServiceMetadata md = metadata[id]
+                    if (md != null) {
+                        println "WARNING: A service with id $id already exists at $url"
+                    }
+                    md = new ServiceMetadata((Map) data.payload)
                     metadata.put(id, md)
+                    all.add(id)
                     md.produces.annotations.each { String type ->
                         register(type, id)
                     }
@@ -83,7 +89,6 @@ class ServiceIndex implements Iterable<String> {
             index[type] = services
         }
         services.add(service)
-        all.add(service)
     }
 
     List<String> getAt(String type) {

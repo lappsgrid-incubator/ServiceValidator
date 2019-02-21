@@ -22,6 +22,7 @@ import org.lappsgrid.serialization.Serializer
 import org.lappsgrid.serialization.lif.Annotation
 import org.lappsgrid.serialization.lif.Container
 import org.lappsgrid.serialization.lif.View
+import org.lappsgrid.service.validator.ID
 
 import static org.lappsgrid.discriminator.Discriminators.Uri
 
@@ -40,13 +41,13 @@ import picocli.CommandLine.Option
         headerHeading = "%n@|bold Synopsis |@%n",
         footer = [
                 "",
-                "If @|bold --service|@ is specified then @|bold --type|@ is ignored.",
+                "If @|bold --service|@ is specified then the @|bold --type|@ @|bold --latest|@ options are ignored.",
                 "",
                 "Copyright(c) 2019 The Lanuage Applications Grid.",
                  ""
         ]
 )
-class TestCommand extends CommonOptions implements Runnable {
+class TestCommand extends FilteredCommand implements Runnable {
     @Option(names=["-a", "--validate"], description = "Check the annotation types produced and reject any with # in the URI.")
     Boolean validate
     @Option(names=["-n", "--no-view"], description = "Do not expect a new view in the output.")
@@ -55,8 +56,8 @@ class TestCommand extends CommonOptions implements Runnable {
     String[] services
     @Option(names=["-t", "--type"], description = "Sevices that produces this annotation type will be tested.")
     String type
-    @Option(names=["-f", "--filter"], description="Only test services that match the filter.")
-    String[] filters
+//    @Option(names=["-f", "--filter"], description="Only test services that match the filter.")
+//    String[] filters
     @Option(names=["--verbose"], description = "Prints the JSON returned by the LAPPS Grid service.")
     Boolean verbose
     @Option(names=["-h", "--help"], description = "Print this help message and exit.", help=true, usageHelp=true)
@@ -77,10 +78,14 @@ class TestCommand extends CommonOptions implements Runnable {
             index.load("brandeis")
         }
 
+        List<String> accepted = []
         passed = 0
         failed = 0
         if (services && services.size() > 0) {
-            services.each { validateService(it) }
+            //services.each { validateService(it) }
+            accepted = Arrays.asList(services)
+            // Ignore the --latest option if specified.
+            this.latest = false
         }
         else if (type) {
             String uri = app.uri(type)
@@ -90,17 +95,34 @@ class TestCommand extends CommonOptions implements Runnable {
                 return
             }
             ids.each { String id ->
-                validateService(id)
+//                validateService(id)
+                if (accept(id)) {
+                    accepted.add(id)
+                }
             }
         }
         else if (filters && filters.size() > 0) {
             index.each { String id ->
-                validateService(id)
+//                validateService(id)
+                if (accept(id)) {
+                    accepted.add(id)
+                }
             }
         }
         else {
             println "ERROR: One of --type, --filter, or --service must be specified."
+            return
         }
+        if (latest) {
+            List<ID> ids = latest(accepted)
+            ids.each { ID id ->
+                validateService(id.id)
+            }
+        }
+        else {
+            accepted.each { validateService(it) }
+        }
+
         int total = passed + failed
         if (total > 0) {
             println "Services tested: $total"
@@ -109,24 +131,24 @@ class TestCommand extends CommonOptions implements Runnable {
         }
     }
 
-    boolean accept(String filter, String id) {
-        if (filter.startsWith("~")) {
-            return ! accept(filter.substring(1), id)
-        }
-        return id.contains(filter)
-    }
-
-    boolean accept(String id) {
-        if (filters == null || filters.size() == 0) {
-            return true
-        }
-        for (String filter : filters) {
-            if (!accept(filter, id)) {
-                return false
-            }
-        }
-        return true
-    }
+//    boolean accept(String filter, String id) {
+//        if (filter.startsWith("~")) {
+//            return ! accept(filter.substring(1), id)
+//        }
+//        return id.contains(filter)
+//    }
+//
+//    boolean accept(String id) {
+//        if (filters == null || filters.size() == 0) {
+//            return true
+//        }
+//        for (String filter : filters) {
+//            if (!accept(filter, id)) {
+//                return false
+//            }
+//        }
+//        return true
+//    }
 
     void validateService(String id) {
         if (!accept(id)) {
@@ -138,7 +160,7 @@ class TestCommand extends CommonOptions implements Runnable {
         }
         else {
             String url = index.getUrl(id)
-            println "Validating service $id at $url"
+            println "Validating $url"
             if (testService(url, metadata)) {
                 println "PASSED: $id"
                 ++passed
@@ -154,11 +176,10 @@ class TestCommand extends CommonOptions implements Runnable {
         boolean failed = false
         try {
             String json = getTestData(metadata)
-            if (json == null) {
+            if (json == null || json.length() == 0) {
                 println "ERROR: Unable to get test data for $url"
                 return false
             }
-
             Data data = Serializer.parse(json)
             data = convert(data)
             Container original = new Container((Map) data.payload)
@@ -198,7 +219,7 @@ class TestCommand extends CommonOptions implements Runnable {
                 String expectedType = type
                 int hash = expectedType.indexOf("#")
                 if (hash > 0) {
-                    expectedType = expectedType.substring(0, hash - 1)
+                    expectedType = expectedType.substring(0, hash)
                 }
                 if (validate && generatedViews.size() > 0) {
                     // Check annotations produced in the last view.
@@ -228,6 +249,9 @@ class TestCommand extends CommonOptions implements Runnable {
         catch (Exception e) {
             if (verbose) {
                 e.printStackTrace()
+            }
+            else {
+                println "ERROR: " + e.message
             }
             return false
         }
