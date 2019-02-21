@@ -323,7 +323,7 @@ class TestCommand extends FilteredCommand implements Runnable {
             url = "http://vassar.lappsgrid.org/invoker/anc:tcf-converter_1.0.1"
         }
         else {
-            println "WARNING: No coverter for type ${input.discriminator}"
+            println "WARNING: No converter for type ${input.discriminator}"
             return null
         }
         ServiceClient converter = new ServiceClient(url, "tester", "tester")
