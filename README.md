@@ -70,6 +70,7 @@ Prints a list of service that produce a give annotation type (`-t`, `--type`).  
   -v, --vassar             Call Vassar services.
   -b, --brandeis           Call Brandeis services.
   -f, --filter=<filters>   Strings to match in the service ID.
+  -l, --latest             Only test the latest version of each service.
   -t, --type=<type>        Annotation type produced by the service
   -r, --requires           Print the annotation types required by the service.
   -h, --help               Disply this help message and exit.
@@ -99,18 +100,20 @@ Sends a LIF document to one or more services and verify that they produce the co
 ``` 
   -v, --vassar               Call Vassar services.
   -b, --brandeis             Call Brandeis services.
+  -f, --filter=<filters>     Strings to match in the service ID.
+  -l, --latest               Only test the latest version of each service.
   -a, --validate             Check the annotation types produced and reject any with
                                # in the URI.
   -n, --no-view              Do not expect a new view in the output.
   -s, --service=<services>   Service ID of a single service to be tested.
   -t, --type=<type>          Sevices that produces this annotation type will be
                                tested.
-  -f, --filter=<filters>     Only test services that match the filter.
+  -m, --summarize            Print a summary of services that pass/fail.
       --verbose              Prints the JSON returned by the LAPPS Grid service.
   -h, --help                 Print this help message and exit.
 ```
 
-If one or more `--service`s are specified then the `--type` (if any) is ignored.
+If one or more `--service`s are specified then the `--type` and `--latest` options (if any) is ignored.
 
 Use the `--no-view` option when testing GATE or Weblicht services. Since the output from these services is run through one of the conversion services all annotations will be placed into a single view.  The `--no-veiw` option disables the check to see if the output contains at least one more view than the input.
 
