@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2019 The Language Applications Grid
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.lappsgrid.service.validator
 
 import org.lappsgrid.discriminator.Discriminators
@@ -8,18 +24,23 @@ import org.lappsgrid.serialization.Serializer
 /**
  *
  */
-class ServiceIndex {
+class ServiceIndex implements Iterable<String> {
 
     File root
 
     Map<String, List<String>> index = [:]
     Map<String, ServiceMetadata> metadata = [:]
     Map<String, String> urls = [:]
+    List<String> all = []
 
     ServiceIndex() { }
     ServiceIndex(String path) { this(new File(path)) }
     ServiceIndex(File directory) {
         this.root = directory
+    }
+
+    Iterator<String> iterator() {
+        return all.iterator()
     }
 
     void load(String organization) {
@@ -39,11 +60,17 @@ class ServiceIndex {
                     urls[id] = url
                 }
                 else {
-                    println "WARING: No url for service $id"
+                    println "WARNING: No url for service $id"
+                    url = "http://unknown"
                 }
                 if (schema.contains('service-schema')) {
-                    ServiceMetadata md = new ServiceMetadata((Map) data.payload)
+                    ServiceMetadata md = metadata[id]
+                    if (md != null) {
+                        println "WARNING: A service with id $id already exists at $url"
+                    }
+                    md = new ServiceMetadata((Map) data.payload)
                     metadata.put(id, md)
+                    all.add(id)
                     md.produces.annotations.each { String type ->
                         register(type, id)
                     }

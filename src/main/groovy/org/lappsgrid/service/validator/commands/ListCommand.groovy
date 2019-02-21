@@ -1,7 +1,24 @@
+/*
+ * Copyright (c) 2019 The Language Applications Grid
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.lappsgrid.service.validator.commands
 
 import com.sun.scenario.effect.impl.sw.sse.SSEBlend_SRC_OUTPeer
 import org.lappsgrid.metadata.ServiceMetadata
+import org.lappsgrid.service.validator.ID
 import org.lappsgrid.service.validator.ServiceIndex
 import org.lappsgrid.service.validator.ServicesValidator
 import org.lappsgrid.service.validator.commands.CommonOptions
@@ -19,13 +36,15 @@ import picocli.CommandLine.Mixin
         sortOptions = false,
         headerHeading = "%n@|bold Synopsis |@%n"
 )
-class ListCommand extends CommonOptions implements Runnable {
-    @Option(names=["-f", "--filter"], description = "Strings to match in the service ID.")
-    String[] filters
+class ListCommand extends FilteredCommand implements Runnable {
+//    @Option(names=["-f", "--filter"], description = "Strings to match in the service ID.")
+//    String[] filters
     @Option(names = ["-t", "--type"], description = "Annotation type produced by the service")
     String type
     @Option(names=["-r", "--requires"], description = "Print the annotation types required by the service.")
     Boolean requires
+//    @Option(names=["-l","--latest"], description = "Only test the latest version of each service.")
+//    Boolean latest
     @Option(names=["-h", "--help"], description = "Disply this help message and exit.", help = true, usageHelp = true)
     Boolean help
 
@@ -50,33 +69,38 @@ class ListCommand extends CommonOptions implements Runnable {
         }
     }
 
-    boolean accept(String filter, String type) {
-        if (filter.startsWith("~")) {
-            return ! accept(filter.substring(1), type)
-        }
-        return type.contains(filter)
-    }
-
-    boolean accept(String type) {
-        if (filters && filters.size() > 0) {
-            for (String filter : filters) {
-                if (!accept(filter, type)) {
-                    return false
-                }
-            }
-        }
-        return true
-    }
-
     void printType(String type) {
         List<String> services = index[type]
         if (services == null || services.size() == 0) {
             println "No services produce $type"
             return
         }
-        println type
+//        println type
+        List<String> accepted = []
         services.each {
             if (accept(it)) {
+                accepted.add(it)
+//                println "\t$it"
+//                if (requires) {
+//                    printRequires(it)
+//                }
+            }
+        }
+        if (latest) {
+            List<ID> ids = latest(accepted)
+            if (ids.size() > 0) {
+                println type
+                ids.each { ID id ->
+                    println "\t${id.id}"
+                    if (requires) {
+                        printRequires(id.id)
+                    }
+                }
+            }
+        }
+        else {
+            println type
+            accepted.each {
                 println "\t$it"
                 if (requires) {
                     printRequires(it)
