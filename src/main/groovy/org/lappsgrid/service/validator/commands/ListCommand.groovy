@@ -16,17 +16,13 @@
 
 package org.lappsgrid.service.validator.commands
 
-import com.sun.scenario.effect.impl.sw.sse.SSEBlend_SRC_OUTPeer
+
 import org.lappsgrid.metadata.ServiceMetadata
 import org.lappsgrid.service.validator.ID
 import org.lappsgrid.service.validator.ServiceIndex
 import org.lappsgrid.service.validator.ServicesValidator
-import org.lappsgrid.service.validator.commands.CommonOptions
-import picocli.CommandLine
 import picocli.CommandLine.Command
 import picocli.CommandLine.Option
-import picocli.CommandLine.Mixin
-
 
 /**
  *
@@ -37,14 +33,10 @@ import picocli.CommandLine.Mixin
         headerHeading = "%n@|bold Synopsis |@%n"
 )
 class ListCommand extends FilteredCommand implements Runnable {
-//    @Option(names=["-f", "--filter"], description = "Strings to match in the service ID.")
-//    String[] filters
     @Option(names = ["-t", "--type"], description = "Annotation type produced by the service")
     String type
     @Option(names=["-r", "--requires"], description = "Print the annotation types required by the service.")
     Boolean requires
-//    @Option(names=["-l","--latest"], description = "Only test the latest version of each service.")
-//    Boolean latest
     @Option(names=["-h", "--help"], description = "Disply this help message and exit.", help = true, usageHelp = true)
     Boolean help
 
@@ -75,15 +67,10 @@ class ListCommand extends FilteredCommand implements Runnable {
             println "No services produce $type"
             return
         }
-//        println type
         List<String> accepted = []
         services.each {
             if (accept(it)) {
                 accepted.add(it)
-//                println "\t$it"
-//                if (requires) {
-//                    printRequires(it)
-//                }
             }
         }
         if (latest) {
@@ -115,9 +102,8 @@ class ListCommand extends FilteredCommand implements Runnable {
         if (!metadata.requires.annotations || metadata.requires.annotations.size() == 0) {
             return
         }
-        println "\tRequires:"
         metadata.requires.annotations.each {
-            println "\t\t$it"
+            println "\t\tRequires $it"
         }
     }
 }
