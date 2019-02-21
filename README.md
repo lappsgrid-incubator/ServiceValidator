@@ -113,7 +113,7 @@ Sends a LIF document to one or more services and verify that they produce the co
   -h, --help                 Print this help message and exit.
 ```
 
-If one or more `--service`s are specified then the `--type` and `--latest` options (if any) is ignored.
+If one or more `--service`s are specified then the `--type` and `--latest` options (if any) are ignored.
 
 Use the `--no-view` option when testing GATE or Weblicht services. Since the output from these services is run through one of the conversion services all annotations will be placed into a single view.  The `--no-veiw` option disables the check to see if the output contains at least one more view than the input.
 
