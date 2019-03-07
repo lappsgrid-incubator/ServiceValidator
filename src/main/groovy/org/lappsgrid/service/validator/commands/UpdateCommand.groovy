@@ -39,7 +39,7 @@ import static org.lappsgrid.discriminator.Discriminators.Uri
         sortOptions = false,
         headerHeading = "%n@|bold Synopsis |@%n"
 )
-class UpdateCommand extends CommonOptions implements Runnable {
+class UpdateCommand extends FilteredCommand implements Runnable {
 
     @Option(names = ["-h", "--help"], description = "Prints this help screens and exits.", help = true, usageHelp = true)
     Boolean usageHelp
@@ -78,7 +78,7 @@ class UpdateCommand extends CommonOptions implements Runnable {
         int count = 0
         Map allServices = (Map) parser.parseText(json)
         allServices.elements.each { e ->
-            if (e.active) {
+            if (e.active && accept(e.serviceId)) {
                 String url = e.endpointUrl
                 int index = url.lastIndexOf(":")
                 String name = url.substring(index + 1)

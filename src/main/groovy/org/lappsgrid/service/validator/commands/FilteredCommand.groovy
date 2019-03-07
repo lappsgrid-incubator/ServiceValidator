@@ -32,9 +32,9 @@ class FilteredCommand extends CommonOptions {
         return true
     }
 
-    List<ID> latest() {
-        return latest(index.all)
-    }
+//    List<ID> latest() {
+//        return latest(index.all)
+//    }
 
     List<ID> latest(List<String> idList) {
         List<ID> newest = []

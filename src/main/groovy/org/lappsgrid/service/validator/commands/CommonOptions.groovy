@@ -16,6 +16,8 @@
 
 package org.lappsgrid.service.validator.commands
 
+import org.lappsgrid.service.validator.ServiceIndex
+import org.lappsgrid.service.validator.ServicesValidator
 import picocli.CommandLine.Option
 import picocli.CommandLine.Command
 
@@ -31,5 +33,21 @@ class CommonOptions {
     @Option(names = ['-b', '--brandeis'], description = "Call Brandeis services.")
     Boolean brandeis
 
-
+    ServiceIndex loadIndex(File directory) {
+        ServiceIndex index = new ServiceIndex(directory)
+        boolean includeBoth = true
+        if (vassar) {
+            index.load('vassar')
+            includeBoth = false
+        }
+        if (brandeis) {
+            index.load("brandeis")
+            includeBoth = false
+        }
+        if (includeBoth) {
+            index.load("vassar")
+            index.load("brandeis")
+        }
+        return index
+    }
 }

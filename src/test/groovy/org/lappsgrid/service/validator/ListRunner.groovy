@@ -10,6 +10,11 @@ import org.junit.Test
 class ListRunner {
 
     @Test
+    void listVassar() {
+        ServicesValidator.main("ls --vassar".split())
+    }
+
+    @Test
     void latest() {
         ServicesValidator.main("list -vb --latest".split())
     }

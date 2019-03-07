@@ -39,7 +39,7 @@ By default the metadata will be cached in the user's $HOME directory ($HOME/.lap
 All sub-commands include their own help screens:
 
 ```bash
-./service-validator [list|test|update] --help
+./service-validator [list|test|update|clean] --help
 
 ```
 
@@ -62,6 +62,36 @@ Update metadata for all services:
 ./service-validator up -vb
 ```
 
+### Clean
+
+Deletes downloaded  metadata from the local cache directory. The cache directory can be specified with the `--cache-dir` option.
+
+``` 
+  -v, --vassar     Call Vassar services.
+  -b, --brandeis   Call Brandeis services.
+  -h, --help       Prints this help screens and exits.
+```
+
+**Examples**
+
+Delete all cached metadata:
+```bash
+./service-validator clean
+./service-validator cl
+```
+
+Delete all Vassar metadata:
+```bash
+./service-validator clean --vassar
+./service-validator cl -v
+```
+
+Delete Brandeis metadata from `/var/lib/lappsgrid`:
+```bash
+./service-validator --cache-dir /var/lib/lappsgrid clean --brandeis 
+./service-validator -d /var/lib/lappsgrid cl -b
+```
+
 ### List
 
 Prints a list of service that produce a give annotation type (`-t`, `--type`).  If the `--type` is not specified then all services are listed. Use the `--filter` option to restrict the output to only the services that contain the filter string in their service ID.  At lease one of `--vassar` or `--brandeis` must be specified.
@@ -79,20 +109,19 @@ Prints a list of service that produce a give annotation type (`-t`, `--type`).  
 **Examples**
 
 List all services hosted at Brandeis:
-``` 
+```bash
 ./service-validator list --brandeis
 ./service-validator ls -b
 ```
 List all part-of-speech taggers at Vassar:
-``` 
-./service-validator ls -vt Token#pos
+```bash 
 ./service-validator list --vassar --type Token#pos
+./service-validator ls -vt Token#pos
 ```
 List all services that have the string `dkpro` in their service ID:
-``` 
-
-./service-validator ls -vbf dkpro
+``` bash
 ./service-validator list --vassar --brandeis --filter dkpro
+./service-validator ls -vbf dkpro
 ```
 
 ### Test

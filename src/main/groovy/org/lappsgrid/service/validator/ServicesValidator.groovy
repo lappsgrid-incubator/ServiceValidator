@@ -45,8 +45,12 @@ import picocli.CommandLine.Option
         descriptionHeading = "%n@|bold Description|@%n",
         optionListHeading = "%n@|bold Options|@%n",
         commandListHeading = "%n@|bold Commands|@%n",
-        footer = "%nCopyright(c) 2019 The Language Applications Grid%n",
-        subcommands = [ListCommand, UpdateCommand, TestCommand],
+        footer = """ 
+Run @|bold service-validator COMMAND --help|@ to get help for a sub-command.
+    
+Copyright(c) 2019 The Language Applications Grid 
+        """,
+        subcommands = [ListCommand, UpdateCommand, TestCommand, CleanCommand],
         header = """
     __                                      _     __
    / /   ____ _____  ____  _________ ______(_)___/ /
@@ -60,22 +64,10 @@ class ServicesValidator implements Runnable {
 
     static final ServicesValidator INSTANCE = new ServicesValidator()
 
-//    @Option(names=['-u', '--update'], description = "Download and save new metadata files.")
-//    Boolean update
-//    @Option(names=['-l', '--list'], description = "List all services that produce this annotation type.", paramLabel = "type")
-//    String type
-//    @Option(names = ['-c', '--cached'], description = "Use files saved from previous run.")
-//    Boolean cached
     @Option(names = ['-d', '--cache-dir'], description = "Directory where data will be written. Default is ~/.lappsgrid", required = false, paramLabel = "directory")
     File destination
 
-//    ServiceIndex index
-//    JsonSlurper parser
-
-    ServicesValidator() {
-//        parser = new JsonSlurper()
-//        index = new ServiceIndex()
-    }
+    ServicesValidator() { }
 
     void run() {
         // Validate input that Picocli can't

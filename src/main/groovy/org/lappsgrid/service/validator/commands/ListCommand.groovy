@@ -45,13 +45,7 @@ class ListCommand extends FilteredCommand implements Runnable {
     void run() {
         ServicesValidator app = ServicesValidator.INSTANCE
 
-        index = new ServiceIndex(app.destination)
-        if (vassar) {
-            index.load("vassar")
-        }
-        if (brandeis) {
-            index.load("brandeis")
-        }
+        index = loadIndex(app.destination)
 
         if (type) {
             printType(app.uri(type))
@@ -93,8 +87,8 @@ class ListCommand extends FilteredCommand implements Runnable {
                     printRequires(it)
                 }
             }
+            println()
         }
-        println()
     }
 
     void printRequires(String id) {
@@ -102,8 +96,16 @@ class ListCommand extends FilteredCommand implements Runnable {
         if (!metadata.requires.annotations || metadata.requires.annotations.size() == 0) {
             return
         }
-        metadata.requires.annotations.each {
-            println "\t\tRequires $it"
+
+        metadata.requires.with {
+            format.each {
+                println "\t\tFormat $it"
+            }
+            annotations.each {
+                println "\t\tRequires $it"
+            }
         }
+
+
     }
 }

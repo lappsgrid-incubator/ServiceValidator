@@ -69,14 +69,7 @@ class TestCommand extends FilteredCommand implements Runnable {
 
     void run() {
         ServicesValidator app = ServicesValidator.INSTANCE
-
-        index = new ServiceIndex(app.destination)
-        if (vassar) {
-            index.load("vassar")
-        }
-        if (brandeis) {
-            index.load("brandeis")
-        }
+        index = loadIndex(app.destination)
 
         List<String> accepted = []
         passed = []
